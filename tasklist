@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+import os
+from os.path import basename
+import fnmatch
+from glob import glob
+import re
+class colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    @staticmethod
+    def color(str, color):
+        return "%s%s%s" % (color, str, colors.ENDC)
+    @staticmethod
+    def color_se(str, start, end):
+        return "%s%s%s" % (start, str, end)
+
+search_pattern = re.compile(r"(TODO|FIXME|FIX|BUG): (.*)")
+def get_all_files(pattern, exclude):
+    files = [os.path.join(dirpath, f)
+        for dirpath, dirnames, files in os.walk(".") if dirpath.strip("./") not in exclude
+        for f in fnmatch.filter(files, pattern)]
+    return files
+
+def find_tasks_in_file(file):
+    line_cnt = 0
+    tasks = []
+    with open(file) as f:
+        for line in f:
+            line_cnt += 1
+            line = search_pattern.search(line)
+            if line is not None:
+                tasks.append((line.group(1), line_cnt, line.group(2).strip("*/")))
+    return tasks
+def get_stats(tasks):
+    bugs = len([t for t in tasks if t[0] in ["BUG", "FIXME", "FIX"]])
+    todos = len([t for t in tasks if t[0] == "TODO"])
+    return (todos, bugs)
+
+def get_all_tasks(pattern,exclude):
+    files = get_all_files(pattern,exclude)
+    tasks = {}
+    for file in files:
+        t = find_tasks_in_file(file)
+        if t != []:
+            tasks[file] = t
+    return tasks
+def decorate_task(task):
+    if task in ["BUG", "FIX", "FIXME"]:
+        return colors.color("%-7s" %task, colors.FAIL)
+    else:
+        return colors.color("%-7s" %task, colors.OKGREEN)
+
+if __name__ == "__main__":
+    
+    file_tasks =  get_all_tasks("*.c", [".git"])
+    for file,tasks in file_tasks.iteritems():
+        todos,bugs = get_stats(tasks)
+        stat_str = "(Todos: %s, Bugs: %s) " % (colors.color_se("%d"%todos,colors.OKGREEN, colors.HEADER), colors.color_se("%d"%bugs, colors.FAIL, colors.HEADER))
+        file_str =  " File %s "%file.strip("./")
+        file_str += stat_str;
+        print colors.color(file_str.center(90,"="), colors.HEADER)
+        print colors.color("%-7s %-5s %-30s" % ("Type","Line","Comment"), colors.HEADER)
+
+        for task in tasks:
+            task_type, line, comment = task
+            task_type = decorate_task(task_type)
+            print "%s %-5d %-30s" % (task_type, line, comment)
+        print
+        
