@@ -1,5 +1,5 @@
 Package: tasklist
-Version: 1.0
+Version: 1.0.5
 Architecture: all
 Maintainer: Sebastian Tilders <v-apps@gmx.net
 Depends: python3
