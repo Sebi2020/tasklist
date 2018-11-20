@@ -81,7 +81,8 @@ if __name__ == "__main__":
     parser.add_argument("-n","--no-colors", action="store_true", help="Disable ANSI-Color-Sequences")
     parser.add_argument("-p", "--pattern", default="*.c", help="Search pattern")
     parser.add_argument("-e","--exclude", default=[".git"], help="Exclude directories", action="append")
-    parser.add_argument("-s", "--stats", action="store_true", help="Enable overall stats")
+    parser.add_argument("-t", "--total", action="store_true", help="Enable overall stats")
+    parser.add_argument("-s","--summary", action="store_true", help="Just give me a list of tasks")
     parser.add_argument("-v", "--verbose", default=0,action="count", help="Increase verbosity")
     parser.add_argument("dir", default=".", nargs="?", help="Specify search directory")
     args = parser.parse_args();
@@ -90,29 +91,47 @@ if __name__ == "__main__":
 
     file_tasks =  get_all_tasks(args.dir, args.pattern, args.exclude)
     overall_todos, overall_bugs = (0,0)
-    for file,tasks in file_tasks.items():
-        todos,bugs = get_stats(tasks)
-        if args.stats:
-             overall_todos += todos
-             overall_bugs += bugs
+    if not args.summary:
+        for file,tasks in file_tasks.items():
+            todos,bugs = get_stats(tasks)
+            if args.total:
+                 overall_todos += todos
+                 overall_bugs += bugs
 
-        stat_str = "(Todos: %s, Bugs: %s) " % (colors.color_se("%d"%todos,colors.WARNING, colors.HEADER), colors.color_se("%d"%bugs, colors.FAIL, colors.HEADER))
-        file_str =  " File " + file.strip("./") + " "
-        file_str = colors.color_se(file_str,colors.BLUE,colors.HEADER)
-        file_str += stat_str;
-        if not args.no_colors:
-            print(colors.color(file_str.center(width+25,"="), colors.HEADER))
-        else:
-            print(colors.color(file_str.center(72,"="), colors.HEADER))
-        
-        print (colors.color("%-7s %-5s %-30s" % ("Type","Line","Comment"), colors.HEADER))
-
-        for task in tasks:
-            task_type, line, comment = task
+            stat_str = "(Todos: %s, Bugs: %s) " % (colors.color_se("%d"%todos,colors.WARNING, colors.HEADER), colors.color_se("%d"%bugs, colors.FAIL, colors.HEADER))
+            file_str =  " File " + file.strip("./") + " "
+            file_str = colors.color_se(file_str,colors.BLUE,colors.HEADER)
+            file_str += stat_str;
+            if not args.no_colors:
+                print(colors.color(file_str.center(width+25,"="), colors.HEADER))
+            else:
+                print(colors.color(file_str.center(72,"="), colors.HEADER))
+            
+            print (colors.color("%-7s %-5s %s" % ("Type","Line","Comment"), colors.HEADER))
+            for task in tasks:
+                task_type, line, comment = task
+                task_type = decorate_task(task_type)
+                print("%s %-5d %s" % (task_type, line, comment))
+            print()
+    else:
+        tasks = [t[1] for t in file_tasks.items()]
+        all_tasks = []
+        for file_task in tasks:
+            for task in file_task:
+                all_tasks.append(task)
+        if len(all_tasks) > 0:
+            if not args.no_colors:
+                print (colors.color(" Summary ".center(width-5, "="), colors.HEADER))
+            else:
+                print (colors.color(" Summary ".center(72, "="), colors.HEADER))
+            print (colors.color("%-7s %s" % ("Type","Comment"), colors.HEADER))
+        for task in all_tasks:
+            task_type, _, comment = task
             task_type = decorate_task(task_type)
-            print("%s %-5d %-30s" % (task_type, line, comment))
+            print("%s %s" % (task_type, comment))
+        overall_todos, overall_bugs = get_stats(all_tasks)
         print()
-    if args.stats:
+    if args.total:
         print(colors.color("Summary", colors.HEADER))
         stat_str = "Todos: %s, Bugs: %s" % (colors.color("%d"%overall_todos,colors.WARNING), colors.color("%d"%overall_bugs, colors.FAIL))
         print (stat_str)
