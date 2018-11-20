@@ -29,10 +29,13 @@ class colors:
         else:
              return str
 
-search_pattern = re.compile(r"(TODO|FIXME|FIX|BUG): (.*)")
+TODO_COLOR = colors.BLUE
+BUG_COLOR = colors.FAIL
+XXX_COLOR = colors.WARNING
+search_pattern = re.compile(r"(TODO|FIXME|FIX|BUG|XXX): (.*)")
 def get_all_files(directory, pattern, exclude):
     files = [os.path.join(dirpath, f)
-        for dirpath, dirnames, files in os.walk(directory) if dirpath.strip("./") not in exclude
+        for dirpath, dirnames, files in os.walk(directory) if not any(map(dirpath.startswith, exclude))
         for f in fnmatch.filter(files, pattern)]
     return files
 
@@ -58,8 +61,9 @@ def find_tasks_in_file(file):
     return tasks
 def get_stats(tasks):
     bugs = len([t for t in tasks if t[0] in ["BUG", "FIXME", "FIX"]])
-    todos = len([t for t in tasks if t[0] in ["TODO", "XXX"]])
-    return (todos, bugs)
+    todos = len([t for t in tasks if t[0] == "TODO"])
+    xxx = len([t for t in tasks if t[0] == "XXX"])
+    return (todos, bugs,xxx)
 
 def get_all_tasks(directory, pattern,exclude):
     files = get_all_files(directory,pattern,exclude)
@@ -73,21 +77,35 @@ def get_all_tasks(directory, pattern,exclude):
         task_cnt = sum([len(t[1]) for t in tasks.items()])
         print(colors.color("Found %d tasks in %d files!" % (task_cnt, len(tasks)), colors.GREEN));
     return tasks
+
+def print_stats(stats):
+    print(colors.color("Summary", colors.HEADER))
+    todo_str = "Todos: "+ colors.color("%d"%stats[0],TODO_COLOR)
+    bug_str = "Bugs: "+ colors.color("%d"%stats[1], BUG_COLOR)
+    xxx_str = "Unclear: "+ colors.color("%d"%stats[2], XXX_COLOR)
+    print (todo_str + ", " + bug_str + ", " + xxx_str)
+
+def get_stat_header(stats):
+    stat_str = "(Todos: %s" % colors.color_se("%d"%stats[0],TODO_COLOR, colors.HEADER)
+    stat_str += ", Bugs: %s" %  colors.color_se("%d"%stats[1], BUG_COLOR, colors.HEADER)
+    stat_str += ", Unclear: %s) " % colors.color_se("%d"%stats[2], XXX_COLOR, colors.HEADER)
+    return stat_str
+
 def decorate_task(task):
     color = ""
     if task in ["BUG", "FIX", "FIXME"]:
-        color = colors.FAIL;
+        color = BUG_COLOR
     elif task in ["XXX"]:
-        color = colors.WARNING
+        color = XXX_COLOR
     else:
-        color = colors.BLUE
+        color = TODO_COLOR
     return colors.color("%-7s" %task, color)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser();
     parser.add_argument("-n","--no-colors", action="store_true", help="Disable ANSI-Color-Sequences")
     parser.add_argument("-p", "--pattern", default="*.c", help="Search pattern")
-    parser.add_argument("-e","--exclude", default=[".git"], help="Exclude directories", action="append")
+    parser.add_argument("-e","--exclude", default=["./.git"], help="Exclude directories", action="append")
     parser.add_argument("-t", "--total", action="store_true", help="Enable overall stats")
     parser.add_argument("-s","--summary", action="store_true", help="Just give me a list of tasks")
     parser.add_argument("-v", "--verbose", default=0,action="count", help="Increase verbosity")
@@ -97,16 +115,17 @@ if __name__ == "__main__":
         width = os.get_terminal_size().columns
 
     file_tasks =  get_all_tasks(args.dir, args.pattern, args.exclude)
-    overall_todos, overall_bugs = (0,0)
+    overall_todos, overall_bugs, overall_xxx = (0,0,0)
     if not args.summary:
         for file,tasks in file_tasks.items():
-            todos,bugs = get_stats(tasks)
+            (todos,bugs,xxx) = get_stats(tasks)
             if args.total:
                  overall_todos += todos
                  overall_bugs += bugs
+                 overall_xxx += xxx
 
-            stat_str = "(Todos: %s, Bugs: %s) " % (colors.color_se("%d"%todos,colors.WARNING, colors.HEADER), colors.color_se("%d"%bugs, colors.FAIL, colors.HEADER))
-            file_str =  " File " + file.strip("./") + " "
+            stat_str = get_stat_header((todos,bugs,xxx))
+            file_str =  " File " + file + " "
             file_str = colors.color_se(file_str,colors.BLUE,colors.HEADER)
             file_str += stat_str;
             if sys.stdout.isatty():
@@ -128,7 +147,7 @@ if __name__ == "__main__":
                 all_tasks.append(task)
         if len(all_tasks) > 0:
             if sys.stdout.isatty():
-                print (colors.color(" Summary ".center(width-5, "="), colors.HEADER))
+                print (colors.color(" Summary ".center(width-15, "="), colors.HEADER))
             else:
                 print (colors.color(" Summary ".center(72, "="), colors.HEADER))
             print (colors.color("%-7s %s" % ("Type","Comment"), colors.HEADER))
@@ -136,9 +155,7 @@ if __name__ == "__main__":
             task_type, _, comment = task
             task_type = decorate_task(task_type)
             print("%s %s" % (task_type, comment))
-        overall_todos, overall_bugs = get_stats(all_tasks)
+        overall_todos, overall_bugs, overall_xxx = get_stats(all_tasks)
         print()
     if args.total:
-        print(colors.color("Summary", colors.HEADER))
-        stat_str = "Todos: %s, Bugs: %s" % (colors.color("%d"%overall_todos,colors.WARNING), colors.color("%d"%overall_bugs, colors.FAIL))
-        print (stat_str)
+        print_stats((overall_todos, overall_bugs, overall_xxx))
