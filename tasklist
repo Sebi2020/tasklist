@@ -30,9 +30,9 @@ class colors:
              return str
 
 search_pattern = re.compile(r"(TODO|FIXME|FIX|BUG): (.*)")
-def get_all_files(pattern, exclude):
+def get_all_files(directory, pattern, exclude):
     files = [os.path.join(dirpath, f)
-        for dirpath, dirnames, files in os.walk(".") if dirpath.strip("./") not in exclude
+        for dirpath, dirnames, files in os.walk(directory) if dirpath.strip("./") not in exclude
         for f in fnmatch.filter(files, pattern)]
     return files
 
@@ -40,24 +40,35 @@ def find_tasks_in_file(file):
     line_cnt = 0
     tasks = []
     with open(file) as f:
+        if args.verbose == 2:
+            print(colors.color("Scanning %s for tasks... " %file,colors.HEADER), end='')
         for line in f:
             line_cnt += 1
             line = search_pattern.search(line)
             if line is not None:
                 tasks.append((line.group(1), line_cnt, line.group(2).strip("*/")))
+    if args.verbose == 2:
+        if(len(tasks)>0):
+            print(colors.color("found %d tasks."% len(tasks), colors.GREEN))
+        else:
+            print(colors.color("found 0 tasks.", colors.HEADER))
     return tasks
 def get_stats(tasks):
     bugs = len([t for t in tasks if t[0] in ["BUG", "FIXME", "FIX"]])
     todos = len([t for t in tasks if t[0] == "TODO"])
     return (todos, bugs)
 
-def get_all_tasks(pattern,exclude):
-    files = get_all_files(pattern,exclude)
+def get_all_tasks(directory, pattern,exclude):
+    files = get_all_files(directory,pattern,exclude)
     tasks = {}
     for file in files:
         t = find_tasks_in_file(file)
         if t != []:
             tasks[file] = t
+
+    if args.verbose >= 1:
+        task_cnt = sum([len(t[1]) for t in tasks.items()])
+        print(colors.color("Found %d tasks in %d files!" % (task_cnt, len(tasks)), colors.GREEN));
     return tasks
 def decorate_task(task):
     if task in ["BUG", "FIX", "FIXME"]:
@@ -71,11 +82,13 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--pattern", default="*.c", help="Search pattern")
     parser.add_argument("-e","--exclude", default=[".git"], help="Exclude directories", action="append")
     parser.add_argument("-s", "--stats", action="store_true", help="Enable overall stats")
+    parser.add_argument("-v", "--verbose", default=0,action="count", help="Increase verbosity")
     parser.add_argument("dir", default=".", nargs="?", help="Specify search directory")
     args = parser.parse_args();
-    width = os.get_terminal_size().columns
+    if sys.stdout.isatty():
+        width = os.get_terminal_size().columns
 
-    file_tasks =  get_all_tasks(args.pattern, args.exclude)
+    file_tasks =  get_all_tasks(args.dir, args.pattern, args.exclude)
     overall_todos, overall_bugs = (0,0)
     for file,tasks in file_tasks.items():
         todos,bugs = get_stats(tasks)
@@ -91,7 +104,8 @@ if __name__ == "__main__":
             print(colors.color(file_str.center(width+25,"="), colors.HEADER))
         else:
             print(colors.color(file_str.center(72,"="), colors.HEADER))
-            print (colors.color("%-7s %-5s %-" +(width-12)+"s" % ("Type","Line","Comment"), colors.HEADER))
+        
+        print (colors.color("%-7s %-5s %-30s" % ("Type","Line","Comment"), colors.HEADER))
 
         for task in tasks:
             task_type, line, comment = task
