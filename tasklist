@@ -42,11 +42,14 @@ def find_tasks_in_file(file):
     with open(file) as f:
         if args.verbose == 2:
             print(colors.color("Scanning %s for tasks... " %file,colors.HEADER), end='')
-        for line in f:
-            line_cnt += 1
-            line = search_pattern.search(line)
-            if line is not None:
-                tasks.append((line.group(1), line_cnt, line.group(2).strip("*/")))
+        try:
+            for line in f:
+                line_cnt += 1
+                line = search_pattern.search(line)
+                if line is not None:
+                    tasks.append((line.group(1), line_cnt, line.group(2).strip("*/")))
+        except:
+            pass
     if args.verbose == 2:
         if(len(tasks)>0):
             print(colors.color("found %d tasks."% len(tasks), colors.GREEN))
@@ -55,7 +58,7 @@ def find_tasks_in_file(file):
     return tasks
 def get_stats(tasks):
     bugs = len([t for t in tasks if t[0] in ["BUG", "FIXME", "FIX"]])
-    todos = len([t for t in tasks if t[0] == "TODO"])
+    todos = len([t for t in tasks if t[0] in ["TODO", "XXX"]])
     return (todos, bugs)
 
 def get_all_tasks(directory, pattern,exclude):
@@ -71,10 +74,14 @@ def get_all_tasks(directory, pattern,exclude):
         print(colors.color("Found %d tasks in %d files!" % (task_cnt, len(tasks)), colors.GREEN));
     return tasks
 def decorate_task(task):
+    color = ""
     if task in ["BUG", "FIX", "FIXME"]:
-        return colors.color("%-7s" %task, colors.FAIL)
+        color = colors.FAIL;
+    elif task in ["XXX"]:
+        color = colors.WARNING
     else:
-        return colors.color("%-7s" %task, colors.WARNING)
+        color = colors.BLUE
+    return colors.color("%-7s" %task, color)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser();
@@ -102,7 +109,7 @@ if __name__ == "__main__":
             file_str =  " File " + file.strip("./") + " "
             file_str = colors.color_se(file_str,colors.BLUE,colors.HEADER)
             file_str += stat_str;
-            if not args.no_colors:
+            if sys.stdout.isatty():
                 print(colors.color(file_str.center(width+25,"="), colors.HEADER))
             else:
                 print(colors.color(file_str.center(72,"="), colors.HEADER))
@@ -120,7 +127,7 @@ if __name__ == "__main__":
             for task in file_task:
                 all_tasks.append(task)
         if len(all_tasks) > 0:
-            if not args.no_colors:
+            if sys.stdout.isatty():
                 print (colors.color(" Summary ".center(width-5, "="), colors.HEADER))
             else:
                 print (colors.color(" Summary ".center(72, "="), colors.HEADER))
