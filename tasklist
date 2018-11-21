@@ -7,6 +7,7 @@ import sys
 import re
 import argparse
 import os
+import itertools
 class colors:
     FAIL = '\033[91m'
     GREEN = '\033[92m'
@@ -36,7 +37,7 @@ search_pattern = re.compile(r"(TODO|FIXME|FIX|BUG|XXX): (.*)")
 def get_all_files(directory, pattern, exclude):
     files = [os.path.join(dirpath, f)
         for dirpath, dirnames, files in os.walk(directory) if not any(map(dirpath.startswith, exclude))
-        for f in fnmatch.filter(files, pattern)]
+        for f in itertools.chain.from_iterable([fnmatch.filter(files, x) for x in  pattern])]
     return files
 
 def find_tasks_in_file(file):
@@ -104,7 +105,7 @@ def decorate_task(task):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser();
     parser.add_argument("-n","--no-colors", action="store_true", help="Disable ANSI-Color-Sequences")
-    parser.add_argument("-p", "--pattern", default="*.c", help="Search pattern")
+    parser.add_argument("-p", "--pattern", default=["*.c", "*.h"], help="Search patterns", action="append")
     parser.add_argument("-e","--exclude", default=["./.git"], help="Exclude directories", action="append")
     parser.add_argument("-t", "--total", action="store_true", help="Enable overall stats")
     parser.add_argument("-s","--summary", action="store_true", help="Just give me a list of tasks")
