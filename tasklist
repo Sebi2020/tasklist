@@ -105,7 +105,7 @@ def decorate_task(task):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser();
     parser.add_argument("-n","--no-colors", action="store_true", help="Disable ANSI-Color-Sequences")
-    parser.add_argument("-p", "--pattern", default=["*.c", "*.h"], help="Search patterns", action="append")
+    parser.add_argument("-p", "--pattern", default=["*.c", "*.h", "*.S"], help="Search patterns", action="append")
     parser.add_argument("-e","--exclude", default=["./.git"], help="Exclude directories", action="append")
     parser.add_argument("-t", "--total", action="store_true", help="Enable overall stats")
     parser.add_argument("-s","--summary", action="store_true", help="Just give me a list of tasks")
