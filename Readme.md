@@ -1,6 +1,10 @@
 ## Usage
 
-tasklist shows "TODO, FIXME, etc." comments in files
+tasklist shows "TODO, FIXME, etc." comments in files.
+
+Default patterns are `*.c` `*.h` `*.S`
+
+Default exclude is `./git`
 
 ```
 usage: tasklist [-h] [-n] [-p PATTERN] [-e EXCLUDE] [-t] [-s] [-v] [dir]
