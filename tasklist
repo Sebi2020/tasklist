@@ -34,6 +34,7 @@ TODO_COLOR = colors.BLUE
 BUG_COLOR = colors.FAIL
 XXX_COLOR = colors.WARNING
 search_pattern = re.compile(r"(TODO|FIXME|FIX|BUG|XXX): (.*)")
+
 def get_all_files(directory, pattern, exclude):
     files = [os.path.join(dirpath, f)
         for dirpath, dirnames, files in os.walk(directory) if not any(map(dirpath.startswith, exclude))
@@ -65,6 +66,8 @@ def get_stats(tasks):
     todos = len([t for t in tasks if t[0] == "TODO"])
     xxx = len([t for t in tasks if t[0] == "XXX"])
     return (todos, bugs,xxx)
+
+def color_output(no_color): return (not no_color and sys.stdout.isatty())
 
 def get_all_tasks(directory, pattern,exclude):
     files = get_all_files(directory,pattern,exclude)
@@ -101,6 +104,51 @@ def decorate_task(task):
     else:
         color = TODO_COLOR
     return colors.color("%-7s" %task, color)
+def print_tasks(file_tasks):
+    overall_todos, overall_bugs, overall_xxx = (0,0,0)
+    for file,tasks in file_tasks.items():
+        (todos,bugs,xxx) = get_stats(tasks)
+        if args.total:
+             overall_todos += todos
+             overall_bugs += bugs
+             overall_xxx += xxx
+
+        stat_str = get_stat_header((todos,bugs,xxx))
+        file_str =  " File " + file + " "
+        file_str = colors.color_se(file_str,colors.BLUE,colors.HEADER)
+        file_str += stat_str;
+        if color_output(args.no_colors):
+            print(colors.color(file_str.center(width+25,"="), colors.HEADER))
+        else:
+            print(colors.color(file_str.center(72,"="), colors.HEADER))
+        
+        print (colors.color("%-7s %-5s %s" % ("Type","Line","Comment"), colors.HEADER))
+        for task in tasks:
+            task_type, line, comment = task
+            task_type = decorate_task(task_type)
+            print("%s %-5d %s" % (task_type, line, comment))
+    print()
+    return (overall_todos, overall_bugs, overall_xxx)
+
+def print_summary(file_tasks):
+    tasks = [t[1] for t in file_tasks.items()]
+    all_tasks = []
+    for file_task in tasks:
+        for task in file_task:
+            all_tasks.append(task)
+    if len(all_tasks) > 0:
+        if color_output(args.no_colors):
+            print (colors.color(" Summary ".center(width-15, "="), colors.HEADER))
+        else:
+            print (colors.color(" Summary ".center(72, "="), colors.HEADER))
+        print (colors.color("%-7s %s" % ("Type","Comment"), colors.HEADER))
+    for task in all_tasks:
+        task_type, _, comment = task
+        task_type = decorate_task(task_type)
+        print("%s %s" % (task_type, comment))
+    overall_todos, overall_bugs, overall_xxx = get_stats(all_tasks)
+    print()
+    return (overall_todos, overall_bugs, overall_xxx)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser();
@@ -116,47 +164,9 @@ if __name__ == "__main__":
         width = os.get_terminal_size().columns
 
     file_tasks =  get_all_tasks(args.dir, args.pattern, args.exclude)
-    overall_todos, overall_bugs, overall_xxx = (0,0,0)
     if not args.summary:
-        for file,tasks in file_tasks.items():
-            (todos,bugs,xxx) = get_stats(tasks)
-            if args.total:
-                 overall_todos += todos
-                 overall_bugs += bugs
-                 overall_xxx += xxx
-
-            stat_str = get_stat_header((todos,bugs,xxx))
-            file_str =  " File " + file + " "
-            file_str = colors.color_se(file_str,colors.BLUE,colors.HEADER)
-            file_str += stat_str;
-            if sys.stdout.isatty():
-                print(colors.color(file_str.center(width+25,"="), colors.HEADER))
-            else:
-                print(colors.color(file_str.center(72,"="), colors.HEADER))
-            
-            print (colors.color("%-7s %-5s %s" % ("Type","Line","Comment"), colors.HEADER))
-            for task in tasks:
-                task_type, line, comment = task
-                task_type = decorate_task(task_type)
-                print("%s %-5d %s" % (task_type, line, comment))
-            print()
+        total = print_tasks(file_tasks)
     else:
-        tasks = [t[1] for t in file_tasks.items()]
-        all_tasks = []
-        for file_task in tasks:
-            for task in file_task:
-                all_tasks.append(task)
-        if len(all_tasks) > 0:
-            if sys.stdout.isatty():
-                print (colors.color(" Summary ".center(width-15, "="), colors.HEADER))
-            else:
-                print (colors.color(" Summary ".center(72, "="), colors.HEADER))
-            print (colors.color("%-7s %s" % ("Type","Comment"), colors.HEADER))
-        for task in all_tasks:
-            task_type, _, comment = task
-            task_type = decorate_task(task_type)
-            print("%s %s" % (task_type, comment))
-        overall_todos, overall_bugs, overall_xxx = get_stats(all_tasks)
-        print()
+       total = print_summary(file_tasks)
     if args.total:
-        print_stats((overall_todos, overall_bugs, overall_xxx))
+        print_stats(total)
