@@ -1,8 +1,0 @@
-Package: tasklist
-Version: 1.0.6
-Architecture: all
-Maintainer: Sebastian Tilders <v-apps@gmx.net>
-Depends: python3
-Installed-Size: 5
-Homepage: http://www.informatikonline.net
-Description: Python script which extracts todos and fixme comments from source files
