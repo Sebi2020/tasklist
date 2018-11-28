@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: tasklist
+Upstream-Contact: Sebastian Tilders <infoe@informatikonline.net>
+Source: https://github.com/Sebi2020/tasklist
+
+Files: *
+Copyright: 2018 Sebastian Tilders
+License: GPL-3+
