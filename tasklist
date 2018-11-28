@@ -41,6 +41,19 @@ def get_all_files(directory, pattern, exclude):
         for f in itertools.chain.from_iterable([fnmatch.filter(files, x) for x in  pattern])]
     return files
 
+def build_search_pattern(list):
+    list = [t.upper() for t in list]
+    str = r"("
+    first = True
+    for pattern in list:
+        if first:
+            str += (pattern)
+            first = False
+        else:
+            str += "|" + (pattern)
+    str += r"): (.*)"
+    return re.compile(str)
+
 def find_tasks_in_file(file):
     line_cnt = 0
     tasks = []
@@ -127,7 +140,7 @@ def print_tasks(file_tasks):
             task_type, line, comment = task
             task_type = decorate_task(task_type)
             print("%s %-5d %s" % (task_type, line, comment))
-    print()
+        print()
     return (overall_todos, overall_bugs, overall_xxx)
 
 def print_summary(file_tasks):
@@ -154,12 +167,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser();
     parser.add_argument("-n","--no-colors", action="store_true", help="Disable ANSI-Color-Sequences")
     parser.add_argument("-p", "--pattern", default=["*.c", "*.h", "*.S"], help="Search patterns", action="append")
+    parser.add_argument("-i", "--todo-name", help="Only seek for this todo names", action="append")
     parser.add_argument("-e","--exclude", default=["./.git"], help="Exclude directories", action="append")
     parser.add_argument("-t", "--total", action="store_true", help="Enable overall stats")
     parser.add_argument("-s","--summary", action="store_true", help="Just give me a list of tasks")
     parser.add_argument("-v", "--verbose", default=0,action="count", help="Increase verbosity")
     parser.add_argument("dir", default=".", nargs="?", help="Specify search directory")
     args = parser.parse_args();
+
+    if args.todo_name is not None:
+        search_pattern = build_search_pattern(args.todo_name); 
+
     if sys.stdout.isatty():
         width = os.get_terminal_size().columns
 
